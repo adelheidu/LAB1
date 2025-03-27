@@ -1,15 +1,16 @@
+using LAB1.forms;
 using Microsoft.VisualBasic.ApplicationServices;
 using Npgsql;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace LAB1
 {
-    public partial class Form1 : Form
+    public partial class MainForm : Form
     {
 
         NpgsqlConnection connection;
 
-        public Form1()
+        public MainForm()
         {
             InitializeComponent();
         }
@@ -37,11 +38,7 @@ namespace LAB1
                 ";Username=" + textBox4.Text +
                 ";Password=" + textBox5.Text + ";";
 
-
-            //connection = new NpgsqlConnection(connectionString);
-            //connection.Open();
-
-            checkFields();
+            createConnection();
 
         }
 
@@ -65,26 +62,22 @@ namespace LAB1
 
             using NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM books;", connection);
 
-
             using NpgsqlDataReader reader = command.ExecuteReader();
+
             while (reader.Read())
             {
+
                 string record = $"ID: {reader["book_id"]}\n" +
                                        $"Название: {reader["title"]}\n" +
                                        $"Автор: {reader["author"]}\n" +
                                        $"Год: {reader["publication_year"]}\n" +
-                                       $"Жанр: {reader["genre"]}\n" +
-                                       $"Издательство: {reader["publisher"]}\n" +
-                                       $"Цена: {reader["price"]}\n" +
-                                       $"Описание: {reader["description"]}\n" +
                                        new string('-', 50) + "\n";
 
                 richTextBox1.AppendText(record);
             }
-
         }
 
-        private void checkFields()
+        private void createConnection()
         {
             string connectionString =
                 "Server=" + textBox1.Text +
@@ -123,6 +116,39 @@ namespace LAB1
 
         }
 
+        private void button5_Click(object sender, EventArgs e)
+        {
+            InsertForm insertForm = new InsertForm();
+            if (insertForm.ShowDialog() == DialogResult.OK)
+            {
+                using (NpgsqlCommand command = new NpgsqlCommand(
+                    "INSERT INTO books(title, author, publication_year) VALUES (@title, @author, @year);", connection)
+                    )
+                {
+                    command.Parameters.AddWithValue("@title", insertForm.bookTitle);
+                    command.Parameters.AddWithValue("@author", insertForm.bookAuthor);
+                    command.Parameters.AddWithValue("@year", insertForm.bookYear);
 
+                    command.ExecuteNonQuery();
+                }
+            }
+
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            DeleteForm deleteForm = new DeleteForm();
+            if (deleteForm.ShowDialog() == DialogResult.OK)
+            {
+                using (NpgsqlCommand command = new NpgsqlCommand(
+                    "DELETE FROM books WHERE book_id = @id;", connection)
+                    )
+                {
+                    command.Parameters.AddWithValue("@id", deleteForm.bookId);
+
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
     }
 }
