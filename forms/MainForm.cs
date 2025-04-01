@@ -30,16 +30,7 @@ namespace LAB1
 
         private void button2_Click(object sender, EventArgs e)
         {
-
-            string connectionString =
-                "Server=" + textBox1.Text +
-                ";Database=" + textBox2.Text +
-                ";Port=" + textBox3.Text +
-                ";Username=" + textBox4.Text +
-                ";Password=" + textBox5.Text + ";";
-
             createConnection();
-
         }
 
         private void button3_Click(object sender, EventArgs e)
