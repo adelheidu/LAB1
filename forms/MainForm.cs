@@ -1,7 +1,11 @@
 using LAB1.forms;
 using Microsoft.VisualBasic.ApplicationServices;
 using Npgsql;
+using System.Data;
+using static System.ComponentModel.Design.ObjectSelectorEditor;
+using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using System.Diagnostics;
 
 namespace LAB1
 {
@@ -15,7 +19,7 @@ namespace LAB1
             InitializeComponent();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void button1_Click(object sender, EventArgs e) // кнопка "Инициализровать"
         {
             textBox1.Visible = true;
             textBox2.Visible = true;
@@ -28,44 +32,10 @@ namespace LAB1
             button1.Enabled = false;
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void button2_Click(object sender, EventArgs e) // кнопка "Открыть соединение"
         {
             createConnection();
-        }
 
-        private void button3_Click(object sender, EventArgs e)
-        {
-            button4.Visible = false;
-            button5.Visible = false;
-            button6.Visible = false;
-            button3.Enabled = false;
-            button2.Enabled = true;
-            button2.Focus();
-            label1.Text = "Отключено";
-            richTextBox1.Visible = false;
-            richTextBox1.Clear();
-            connection.Close();
-        }
-
-        private void button4_Click(object sender, EventArgs e)
-        {
-            richTextBox1.Clear();
-
-            using NpgsqlCommand command = new NpgsqlCommand("SELECT * FROM books;", connection);
-
-            using NpgsqlDataReader reader = command.ExecuteReader();
-
-            while (reader.Read())
-            {
-
-                string record = $"ID: {reader["book_id"]}\n" +
-                                       $"Название: {reader["title"]}\n" +
-                                       $"Автор: {reader["author"]}\n" +
-                                       $"Год: {reader["publication_year"]}\n" +
-                                       new string('-', 50) + "\n";
-
-                richTextBox1.AppendText(record);
-            }
         }
 
         private void createConnection()
@@ -84,13 +54,22 @@ namespace LAB1
                     connection.Open();
 
                     button4.Visible = true;
-                    button5.Visible = true;
-                    button6.Visible = true;
                     button3.Enabled = true;
                     button2.Enabled = false;
                     label1.Text = "Подключено";
+                    dataGridView1.Visible = true;
+                    listBox1.Visible = true;
                     richTextBox1.Visible = true;
                     label2.Visible = false;
+                    textBox1.Enabled = false;
+                    textBox2.Enabled = false;
+                    textBox3.Enabled = false;
+                    textBox4.Enabled = false;
+                    textBox5.Enabled = false;
+                    button5.Visible = true;
+                    label3.Visible = true;
+                    textBox6.Visible = true;
+                    textBox7.Visible = true;
                 }
                 catch (NpgsqlException)
                 {
@@ -107,13 +86,86 @@ namespace LAB1
 
         }
 
-        private void button5_Click(object sender, EventArgs e)
+        private void button3_Click(object sender, EventArgs e) // кнопка "Закрыть соединение"
+        {
+            button4.Visible = false;
+            button3.Enabled = false;
+            button2.Enabled = true;
+            button2.Focus();
+            label1.Text = "Отключено";
+            dataGridView1.Visible = false;
+            listBox1.Visible = false;
+            listBox1.ClearSelected();
+            dataGridView1.DataSource = null;
+            richTextBox1.Visible = false;
+            richTextBox1.Clear();
+            connection.Close();
+            textBox1.Enabled = true;
+            textBox2.Enabled = true;
+            textBox3.Enabled = true;
+            textBox4.Enabled = true;
+            textBox5.Enabled = true;
+            button5.Visible = false;
+            label3.Visible = false;
+            textBox6.Visible = false;
+            textBox7.Visible = false;
+            textBox6.Clear();
+            textBox7.Clear();
+        }
+
+
+        private void button4_Click(object sender, EventArgs e) // кнопка "Выполнить команду"
+        {
+            switch (listBox1.GetItemText(listBox1.SelectedItem))
+            {
+                case "Просмотр":
+                    selectCommand();
+                    break;
+                case "Вставка":
+                    insertCommand();
+                    break;
+                case "Удаление":
+                    deleteCommand();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void selectCommand()
+        {
+
+            string sqlQuery = "SELECT * FROM books WHERE 1=1";
+
+            if (int.TryParse(textBox6.Text, out int yearFrom))
+                sqlQuery += " AND publication_year >= @yearFrom";
+            
+
+            if (int.TryParse(textBox7.Text, out int yearTo))
+                sqlQuery += " AND publication_year <= @yearTo";
+
+            using (NpgsqlCommand command = new NpgsqlCommand(sqlQuery, connection))
+            {
+                if (int.TryParse(textBox6.Text, out yearFrom))
+                    command.Parameters.AddWithValue("@yearFrom", yearFrom);
+
+                if (int.TryParse(textBox7.Text, out yearTo))
+                    command.Parameters.AddWithValue("@yearTo", yearTo);
+
+                NpgsqlDataAdapter dataAdapter = new NpgsqlDataAdapter(command);
+                DataSet dataSet = new DataSet();
+                dataAdapter.Fill(dataSet, "books");
+                dataGridView1.DataSource = dataSet.Tables["books"];
+            }
+        }
+
+        private void insertCommand()
         {
             InsertForm insertForm = new InsertForm();
             if (insertForm.ShowDialog() == DialogResult.OK)
             {
                 using (NpgsqlCommand command = new NpgsqlCommand(
-                    "INSERT INTO books(title, author, publication_year) VALUES (@title, @author, @year);", connection)
+                    "SELECT insert(@title, @author, @year);", connection)
                     )
                 {
                     command.Parameters.AddWithValue("@title", insertForm.bookTitle);
@@ -123,16 +175,15 @@ namespace LAB1
                     command.ExecuteNonQuery();
                 }
             }
-
         }
 
-        private void button6_Click(object sender, EventArgs e)
+        private void deleteCommand()
         {
             DeleteForm deleteForm = new DeleteForm();
             if (deleteForm.ShowDialog() == DialogResult.OK)
             {
                 using (NpgsqlCommand command = new NpgsqlCommand(
-                    "DELETE FROM books WHERE book_id = @id;", connection)
+                    "SELECT delete(@id);", connection)
                     )
                 {
                     command.Parameters.AddWithValue("@id", deleteForm.bookId);
@@ -140,6 +191,69 @@ namespace LAB1
                     command.ExecuteNonQuery();
                 }
             }
+        }
+
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (listBox1.GetItemText(listBox1.SelectedItem))
+            {
+                case "Просмотр":
+                    richTextBox1.Clear();
+                    break;
+                case "Вставка":
+                    getFunctionText("insert");
+                    break;
+                case "Удаление":
+                    getFunctionText("delete");
+                    break;
+                default:
+                    break;
+            }
+        }
+        private void getFunctionText(string functionName)
+        {
+            richTextBox1.Clear();
+            using NpgsqlCommand command = new NpgsqlCommand(
+                "SELECT routine_definition FROM information_schema.routines WHERE routine_name = @functionName;", connection);
+
+            command.Parameters.AddWithValue("@functionName", functionName);
+            using NpgsqlDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                string record = $"{reader["routine_definition"]}";
+                richTextBox1.AppendText(record);
+            }
+        }
+
+        private void button5_Click(object sender, EventArgs e) // кнопка "Сохранить"
+        {
+            string functionName = "";
+            if (richTextBox1.Text != "" && richTextBox1.Text != null)
+            {
+
+                switch (listBox1.GetItemText(listBox1.SelectedItem))
+                {
+                    case "Вставка":
+                        functionName = "insert";
+                        break;
+                    case "Удаление":
+                        functionName = "delete";
+                        break;
+                    default:
+                        break;
+                }
+
+                using (NpgsqlCommand command = new NpgsqlCommand(
+                    "UPDATE pg_proc SET prosrc = @body where proname= @name;", connection)
+                    )
+                {
+                    command.Parameters.AddWithValue("@name", functionName);
+                    command.Parameters.AddWithValue("@body", richTextBox1.Text);
+                    command.ExecuteNonQuery();
+                }
+            }
+
         }
     }
 }
