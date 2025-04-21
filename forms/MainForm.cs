@@ -13,10 +13,11 @@ namespace LAB1
 {
     public partial class MainForm : Form
     {
-
+        string connectionString;
         NpgsqlConnection connection;
         NpgsqlDataAdapter dataAdapter;
         DataSet dataSet = new DataSet();
+        DataSet treeDataSet = new DataSet();
 
         public MainForm()
         {
@@ -26,7 +27,6 @@ namespace LAB1
         private void button1_Click(object sender, EventArgs e) // кнопка "Инициализровать"
         {
             textBox1.Visible = true;
-            textBox2.Visible = true;
             textBox3.Visible = true;
             textBox4.Visible = true;
             textBox5.Visible = true;
@@ -39,14 +39,12 @@ namespace LAB1
         private void button2_Click(object sender, EventArgs e) // кнопка "Открыть соединение"
         {
             createConnection();
-
         }
 
         private void createConnection()
         {
-            string connectionString =
+            connectionString =
                 "Server=" + textBox1.Text +
-                ";Database=" + textBox2.Text +
                 ";Port=" + textBox3.Text +
                 ";Username=" + textBox4.Text +
                 ";Password=" + textBox5.Text + ";";
@@ -66,7 +64,6 @@ namespace LAB1
                     richTextBox1.Visible = true;
                     label2.Visible = false;
                     textBox1.Enabled = false;
-                    textBox2.Enabled = false;
                     textBox3.Enabled = false;
                     textBox4.Enabled = false;
                     textBox5.Enabled = false;
@@ -74,6 +71,8 @@ namespace LAB1
                     label3.Visible = true;
                     textBox6.Visible = true;
                     textBox7.Visible = true;
+                    treeView1.Visible = true;
+                    initializeTreeView();
                 }
                 catch (NpgsqlException)
                 {
@@ -88,6 +87,28 @@ namespace LAB1
                 label2.Visible = true;
             }
 
+        }
+
+        private void initializeTreeView()
+        {
+            treeView1.Nodes.Clear();
+            treeDataSet.Clear();
+
+            NpgsqlCommand command = new NpgsqlCommand(
+                "SELECT datname FROM pg_database WHERE datistemplate = false;",
+                connection);
+            NpgsqlDataAdapter treeDataAdapter = new NpgsqlDataAdapter(command);
+            treeDataAdapter.Fill(treeDataSet, "Databases");
+
+            TreeNode rootNode = new TreeNode("Databases");
+            treeView1.Nodes.Add(rootNode);
+
+            foreach (DataRow row in treeDataSet.Tables["Databases"].Rows)
+            {
+                string dbName = row["datname"].ToString();
+                TreeNode dbNode = new TreeNode(dbName);
+                rootNode.Nodes.Add(dbNode);
+            }
         }
 
         private void button3_Click(object sender, EventArgs e) // кнопка "Закрыть соединение"
@@ -105,7 +126,6 @@ namespace LAB1
             richTextBox1.Clear();
             connection.Close();
             textBox1.Enabled = true;
-            textBox2.Enabled = true;
             textBox3.Enabled = true;
             textBox4.Enabled = true;
             textBox5.Enabled = true;
@@ -115,8 +135,8 @@ namespace LAB1
             textBox7.Visible = false;
             textBox6.Clear();
             textBox7.Clear();
+            treeView1.Visible = false;
         }
-
 
         private void button4_Click(object sender, EventArgs e) // кнопка "Выполнить команду"
         {
@@ -219,7 +239,7 @@ namespace LAB1
             }
         }
 
-        private void updateCommand() 
+        private void updateCommand()
         {
             try
             {
@@ -297,6 +317,61 @@ namespace LAB1
                     command.Parameters.AddWithValue("@body", richTextBox1.Text);
                     command.ExecuteNonQuery();
                 }
+            }
+
+        }
+
+        private void treeView1_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Node.Parent == null || e.Node.Parent.Text != "Databases")
+                return;
+
+            string dbConnectionString = $"{connectionString}Database={e.Node.Text}";
+            connection = new NpgsqlConnection(dbConnectionString);
+            connection.Open();
+            if (e.Node.Nodes.Count > 0) return;
+
+            using (NpgsqlCommand command = new NpgsqlCommand(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';",
+                connection))
+            {
+                NpgsqlDataAdapter treeDataAdapter = new NpgsqlDataAdapter(command);
+                DataTable tables = new DataTable();
+                treeDataAdapter.Fill(tables);
+
+                foreach (DataRow row in tables.Rows)
+                {
+                    string tableName = row["table_name"].ToString();
+                    TreeNode tableNode = new TreeNode(tableName);
+                    e.Node.Nodes.Add(tableNode);
+                }
+            }
+        }
+
+        private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node.Parent == null
+                || e.Node.Parent.Parent == null
+                || e.Node.Parent.Parent.Text != "Databases")
+                return;
+
+            string dbName = e.Node.Parent.Text;
+            string tableName = e.Node.Text;
+
+            if (tableName == "books") button4.Enabled = true;
+            else button4.Enabled = false;
+
+            string dbConnectionString = $"{connectionString}Database={dbName}";
+            connection = new NpgsqlConnection(dbConnectionString);
+            connection.Open();
+
+            using (NpgsqlCommand command = new NpgsqlCommand($"SELECT * FROM {tableName};", connection))
+            {
+                NpgsqlDataAdapter treeDataAdapter = new NpgsqlDataAdapter(command);
+                DataTable tableData = new DataTable();
+                treeDataAdapter.Fill(tableData);
+
+                dataGridView1.DataSource = tableData;
             }
 
         }
