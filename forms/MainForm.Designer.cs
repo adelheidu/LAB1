@@ -164,7 +164,7 @@
             // 
             listBox1.FormattingEnabled = true;
             listBox1.ItemHeight = 15;
-            listBox1.Items.AddRange(new object[] { "Просмотр", "Вставка", "Удаление" });
+            listBox1.Items.AddRange(new object[] { "Просмотр", "Вставка", "Удаление", "Обновление" });
             listBox1.Location = new Point(951, 325);
             listBox1.Name = "listBox1";
             listBox1.Size = new Size(141, 64);

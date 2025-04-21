@@ -6,6 +6,8 @@ using static System.ComponentModel.Design.ObjectSelectorEditor;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using System.Diagnostics;
+using System.Text;
+using System.Data.Common;
 
 namespace LAB1
 {
@@ -13,6 +15,8 @@ namespace LAB1
     {
 
         NpgsqlConnection connection;
+        NpgsqlDataAdapter dataAdapter;
+        DataSet dataSet = new DataSet();
 
         public MainForm()
         {
@@ -127,6 +131,9 @@ namespace LAB1
                 case "Удаление":
                     deleteCommand();
                     break;
+                case "Обновление":
+                    updateCommand();
+                    break;
                 default:
                     break;
             }
@@ -139,7 +146,7 @@ namespace LAB1
 
             if (int.TryParse(textBox6.Text, out int yearFrom))
                 sqlQuery += " AND publication_year >= @yearFrom";
-            
+
 
             if (int.TryParse(textBox7.Text, out int yearTo))
                 sqlQuery += " AND publication_year <= @yearTo";
@@ -152,8 +159,9 @@ namespace LAB1
                 if (int.TryParse(textBox7.Text, out yearTo))
                     command.Parameters.AddWithValue("@yearTo", yearTo);
 
-                NpgsqlDataAdapter dataAdapter = new NpgsqlDataAdapter(command);
-                DataSet dataSet = new DataSet();
+                dataSet.Clear();
+                dataAdapter = new NpgsqlDataAdapter(command);
+                dataAdapter.UpdateCommand = new NpgsqlCommandBuilder(dataAdapter).GetUpdateCommand();
                 dataAdapter.Fill(dataSet, "books");
                 dataGridView1.DataSource = dataSet.Tables["books"];
             }
@@ -191,6 +199,43 @@ namespace LAB1
                     command.ExecuteNonQuery();
                 }
             }
+        }
+
+        private void showModifiedRows()
+        {
+            DataTable modifiedRows = dataSet.Tables["books"].GetChanges();
+
+            if (modifiedRows != null)
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Измененные строки:");
+
+                foreach (DataRow row in modifiedRows.Rows)
+                {
+                    sb.AppendLine($"ID: {row["book_id"]}");
+                }
+
+                MessageBox.Show(sb.ToString(), "Измененные строки");
+            }
+        }
+
+        private void updateCommand() 
+        {
+            try
+            {
+                if (dataSet.HasChanges())
+                {
+                    showModifiedRows();
+                    dataAdapter.Update(dataSet, "books");
+                    selectCommand();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка при обновлении базы данных: " + ex.Message, "Ошибка");
+                selectCommand();
+            }
+
         }
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)

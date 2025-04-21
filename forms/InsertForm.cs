@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace LAB1
+namespace LAB1.forms
 {
     public partial class InsertForm : Form
     {

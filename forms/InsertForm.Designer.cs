@@ -1,6 +1,6 @@
-﻿namespace LAB1
+﻿namespace LAB1.forms
 {
-    partial class InsertForm : Form
+    partial class InsertForm
     {
         /// <summary>
         /// Required designer variable.
