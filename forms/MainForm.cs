@@ -100,14 +100,11 @@ namespace LAB1
             NpgsqlDataAdapter treeDataAdapter = new NpgsqlDataAdapter(command);
             treeDataAdapter.Fill(treeDataSet, "Databases");
 
-            TreeNode rootNode = new TreeNode("Databases");
-            treeView1.Nodes.Add(rootNode);
-
             foreach (DataRow row in treeDataSet.Tables["Databases"].Rows)
             {
                 string dbName = row["datname"].ToString();
                 TreeNode dbNode = new TreeNode(dbName);
-                rootNode.Nodes.Add(dbNode);
+                treeView1.Nodes.Add(dbNode);
             }
         }
 
@@ -323,8 +320,7 @@ namespace LAB1
 
         private void treeView1_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            if (e.Node.Parent == null || e.Node.Parent.Text != "Databases")
-                return;
+            if (e.Node.Parent != null) return;
 
             string dbConnectionString = $"{connectionString}Database={e.Node.Text}";
             connection = new NpgsqlConnection(dbConnectionString);
@@ -350,15 +346,12 @@ namespace LAB1
 
         private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (e.Node.Parent == null
-                || e.Node.Parent.Parent == null
-                || e.Node.Parent.Parent.Text != "Databases")
-                return;
+            if (e.Node.Parent == null) return;
 
             string dbName = e.Node.Parent.Text;
             string tableName = e.Node.Text;
 
-            if (tableName == "books") button4.Enabled = true;
+            if (dbName == "books" && tableName == "books") button4.Enabled = true;
             else button4.Enabled = false;
 
             string dbConnectionString = $"{connectionString}Database={dbName}";
