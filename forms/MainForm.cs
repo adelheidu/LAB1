@@ -360,11 +360,20 @@ namespace LAB1
 
             using (NpgsqlCommand command = new NpgsqlCommand($"SELECT * FROM {tableName};", connection))
             {
-                NpgsqlDataAdapter treeDataAdapter = new NpgsqlDataAdapter(command);
-                DataTable tableData = new DataTable();
-                treeDataAdapter.Fill(tableData);
+                if (dbName == "books" && tableName == "books") {
+                    dataSet.Clear();
+                    dataAdapter = new NpgsqlDataAdapter(command);
+                    dataAdapter.UpdateCommand = new NpgsqlCommandBuilder(dataAdapter).GetUpdateCommand();
+                    dataAdapter.Fill(dataSet, "books");
+                    dataGridView1.DataSource = dataSet.Tables["books"];
+                } else
+                {
+                    NpgsqlDataAdapter treeDataAdapter = new NpgsqlDataAdapter(command);
+                    DataTable tableData = new DataTable();
+                    treeDataAdapter.Fill(tableData);
+                    dataGridView1.DataSource = tableData;
+                }
 
-                dataGridView1.DataSource = tableData;
             }
 
         }
