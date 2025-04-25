@@ -268,6 +268,9 @@ namespace LAB1
                 case "Удаление":
                     getFunctionText("delete");
                     break;
+                case "Обновление":
+                    richTextBox1.Clear();
+                    break;
                 default:
                     break;
             }
