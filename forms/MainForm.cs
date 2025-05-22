@@ -8,6 +8,8 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using System.Diagnostics;
 using System.Text;
 using System.Data.Common;
+using System.Runtime.InteropServices.JavaScript;
+using System.Xml.Linq;
 
 namespace LAB1
 {
@@ -379,6 +381,138 @@ namespace LAB1
 
             }
 
+        }
+
+        private void toolStripMenuItem1_Click(object sender, EventArgs e) // Сохранить БД
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "PostgreSQL dump files (*.dump)|*.dump|All files (*.*)|*.*";
+            saveFileDialog.Title = "Сохранить дамп базы данных";
+            saveFileDialog.FileName = $"books_backup_{DateTime.Now:yyyyMMddHHmmss}.dump";
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    string dumpFile = saveFileDialog.FileName;
+                    string arguments = $"-h localhost -U postgres -F c -f \"{dumpFile}\" books";
+
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = "pg_dump",
+                        Arguments = arguments,
+                        RedirectStandardInput = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        Environment = { ["PGPASSWORD"] = "password" }
+                    };
+
+                    using (Process process = new Process { StartInfo = startInfo })
+                    {
+                        process.Start();
+                        process.WaitForExit();
+
+                        if (process.ExitCode == 0)
+                        {
+                            MessageBox.Show($"База данных успешно сохранена в файл:\n{dumpFile}", "Успех",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            string error = process.StandardError.ReadToEnd();
+                            MessageBox.Show($"Ошибка при сохранении базы данных:\n{error}", "Ошибка",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void toolStripMenuItem2_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "PostgreSQL dump files (*.dump)|*.dump|All files (*.*)|*.*";
+            openFileDialog.Title = "Выберите файл дампа для восстановления";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string dumpFile = openFileDialog.FileName; // Переносим эту строку после ShowDialog!
+
+                try
+                {
+                    // Вариант 1: Полное восстановление
+                    //string restoreArgs = $"-h localhost -U postgres -F c -d books \"{dumpFile}\"";
+
+                    // Вариант 2: Восстановление только данных таблицы books
+                    string restoreArgs = $"-h localhost -U postgres -F c -d books -c -t books \"{dumpFile}\"";
+
+                    using (Process restoreProcess = new Process())
+                    {
+                        restoreProcess.StartInfo = new ProcessStartInfo
+                        {
+                            FileName = "pg_restore",
+                            Arguments = restoreArgs,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            Environment = { ["PGPASSWORD"] = "password" }
+                        };
+
+                        restoreProcess.Start();
+                        restoreProcess.WaitForExit();
+
+                        if (restoreProcess.ExitCode == 0)
+                        {
+                            MessageBox.Show("Данные успешно восстановлены!", "Успех",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            string error = restoreProcess.StandardError.ReadToEnd();
+                            MessageBox.Show($"Ошибка при восстановлении:\n{error}", "Ошибка",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        RestorePrimaryKey();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void RestorePrimaryKey()
+        {
+            using (NpgsqlConnection connection1 = new NpgsqlConnection("Server=localhost;Database=books;Port=5432;Username=postgres;Password=password;"))
+            {
+                connection1.Open();
+                try
+                {
+                    using (NpgsqlCommand command = new NpgsqlCommand(
+                        "ALTER TABLE books ADD CONSTRAINT books_pkey PRIMARY KEY (book_id);",
+                        connection1))
+                    {
+                        command.ExecuteNonQuery();
+                        MessageBox.Show("Первичный ключ успешно восстановлен", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка при восстановлении первичного ключа: {ex.Message}",
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+                
         }
     }
 }
